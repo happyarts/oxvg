@@ -40,6 +40,18 @@ pub struct RemoveEditorsNSData {
     /// A list of additional namespaces URIs you may want to remove.
     #[cfg_attr(feature = "wasm", tsify(optional))]
     pub additional_namespaces: Option<HashSet<String>>,
+    /// A list of namespace URIs to keep although they are editor namespaces,
+    /// e.g. RDF, Dublin Core and Creative Commons, which hold the creator and
+    /// the licence.
+    #[cfg_attr(feature = "wasm", tsify(optional))]
+    pub keep_namespaces: Option<HashSet<String>>,
+}
+
+impl RemoveEditorsNSData {
+    fn removes(&self, uri: &str) -> bool {
+        let contains = |set: &Option<HashSet<String>>| set.as_ref().is_some_and(|set| set.contains(uri));
+        (is_editor_namespace(uri) && !contains(&self.keep_namespaces)) || contains(&self.additional_namespaces)
+    }
 }
 
 impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEditorsNSData {
@@ -50,13 +62,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEditorsNSData {
         element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        let uri = element.prefix().ns().uri();
-        if is_editor_namespace(uri)
-            || self
-                .additional_namespaces
-                .as_ref()
-                .is_some_and(|set| set.contains(&**uri))
-        {
+        if self.removes(element.prefix().ns().uri()) {
             element.remove();
             return Ok(());
         }
@@ -71,19 +77,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEditorsNSData {
                 value,
             } = attr
             {
-                return !is_editor_namespace(value)
-                    && !self
-                        .additional_namespaces
-                        .as_ref()
-                        .is_some_and(|set| set.contains(&**value));
+                return !self.removes(value);
             }
 
-            let uri = attr.prefix().ns().uri();
-            !is_editor_namespace(uri)
-                && !self
-                    .additional_namespaces
-                    .as_ref()
-                    .is_some_and(|set| set.contains(&**uri))
+            !self.removes(attr.prefix().ns().uri())
         });
 
         Ok(())
@@ -144,6 +141,23 @@ fn remove_editors_n_s_data() -> anyhow::Result<()> {
     </sodipodi:namedview>
 
     <path d="..." sodipodi:nodetypes="cccc"/>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "removeEditorsNSData": { "keepNamespaces": ["http://www.w3.org/1999/02/22-rdf-syntax-ns#", "http://purl.org/dc/elements/1.1/", "http://creativecommons.org/ns#"] } }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape">
+    <metadata>
+        <rdf:RDF>
+            <cc:Work rdf:about="">
+                <dc:creator><cc:Agent><dc:title>Jane Doe</dc:title></cc:Agent></dc:creator>
+                <cc:license rdf:resource="http://creativecommons.org/licenses/by/4.0/"/>
+            </cc:Work>
+        </rdf:RDF>
+    </metadata>
+    <path d="..." inkscape:label="Layer 1"/>
 </svg>"#
         ),
     )?);
