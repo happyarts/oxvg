@@ -449,7 +449,11 @@ impl<'input, 'arena> Node<'input, 'arena> {
     pub fn is_empty(&self) -> bool {
         self.first_child().is_none_or(|_| {
             self.child_nodes_iter().all(|n| {
-                n.node_type() == Type::Text && n.text_content().is_none_or(|t| t.trim().is_empty())
+                n.node_type() == Type::Text
+                    && n.text_content().is_none_or(|t| {
+                        t.trim_matches(|c| matches!(c, ' ' | '\t' | '\n' | '\r'))
+                            .is_empty()
+                    })
             })
         })
     }
