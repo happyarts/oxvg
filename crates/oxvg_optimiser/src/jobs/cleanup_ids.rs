@@ -220,7 +220,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
                     generated_id.next();
                 }
                 if !is_attribute!(name, Id) {
-                    used_ids.insert(minified_id.clone());
+                    used_ids.insert(if self.options.minify { minified_id.clone() } else { referenced_id.clone() });
                 }
                 if self.options.minify {
                     log::debug!(
@@ -248,7 +248,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
                     generated_id.next();
                 }
                 if !is_attribute!(name, Id) {
-                    used_ids.insert(minified_id.clone());
+                    used_ids.insert(if self.options.minify { minified_id.clone() } else { referenced_id.clone() });
                 }
                 if self.options.minify {
                     log::debug!(
@@ -1111,5 +1111,30 @@ fn cleanup_ids_check_rename() -> anyhow::Result<()> {
         )
     )?);
 
+    Ok(())
+}
+
+#[test]
+fn cleanup_ids_remove_without_minify() -> anyhow::Result<()> {
+    use crate::test_config;
+
+    let result = test_config(
+        r#"{ "cleanupIds": { "remove": true, "minify": false } }"#,
+        Some(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <defs>
+        <linearGradient id="gradient"><stop offset="0" stop-color="red"/></linearGradient>
+        <path id="shape" d="M0 0h10v10z"/>
+    </defs>
+    <rect id="unused" width="10" height="10" fill="url(#gradient)"/>
+    <use xlink:href="#shape"/>
+</svg>"##,
+        ),
+    )?;
+    // Referenced ids stay as they are, only the unreferenced one goes.
+    assert!(result.contains(r#"id="gradient""#), "{result}");
+    assert!(result.contains(r#"id="shape""#), "{result}");
+    assert!(result.contains("url(#gradient)"), "{result}");
+    assert!(!result.contains("unused"), "{result}");
     Ok(())
 }
