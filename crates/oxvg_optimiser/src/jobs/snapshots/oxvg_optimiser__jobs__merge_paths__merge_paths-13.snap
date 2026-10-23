@@ -1,0 +1,23 @@
+---
+source: crates/oxvg_optimiser/src/jobs/merge_paths.rs
+expression: "test_config(r#\"{ \"mergePaths\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- don't merge dashed paths, merge those without dashes -->\n    <path d=\"M0 0H15\" stroke=\"black\" stroke-dasharray=\"2 2\"/>\n    <path d=\"M0 10H15\" stroke=\"black\" stroke-dasharray=\"2 2\"/>\n    <g style=\"stroke-dasharray:1,1\">\n        <path d=\"M0 20H15\" stroke=\"black\"/>\n        <path d=\"M0 30H15\" stroke=\"black\"/>\n    </g>\n    <g stroke-dasharray=\"3 1\">\n        <path d=\"M0 21H15\" stroke=\"black\" stroke-dasharray=\"inherit\"/>\n        <path d=\"M0 31H15\" stroke=\"black\" stroke-dasharray=\"inherit\"/>\n    </g>\n    <style>.d { stroke-dasharray: 2 2 }</style>\n    <path class=\"d\" d=\"M0 22H15\" stroke=\"black\"/>\n    <path class=\"d\" d=\"M0 32H15\" stroke=\"black\"/>\n    <path d=\"M0 40H15\" stroke=\"black\" stroke-dasharray=\"none\"/>\n    <path d=\"M0 50H15\" stroke=\"black\" stroke-dasharray=\"none\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- don't merge dashed paths, merge those without dashes -->
+    <path d="M0 0H15" stroke="#000" stroke-dasharray="2 2"/>
+    <path d="M0 10H15" stroke="#000" stroke-dasharray="2 2"/>
+    <g style="stroke-dasharray:1 1">
+        <path d="M0 20H15" stroke="#000"/>
+        <path d="M0 30H15" stroke="#000"/>
+    </g>
+    <g stroke-dasharray="3 1">
+        <path d="M0 21H15" stroke="#000" stroke-dasharray="inherit"/>
+        <path d="M0 31H15" stroke="#000" stroke-dasharray="inherit"/>
+    </g>
+    <style>
+        .d{stroke-dasharray:2 2}
+    </style>
+    <path class="d" d="M0 22H15" stroke="#000"/>
+    <path class="d" d="M0 32H15" stroke="#000"/>
+    <path d="M0 40H15M0 50H15" stroke="#000" stroke-dasharray="none"/>
+</svg>

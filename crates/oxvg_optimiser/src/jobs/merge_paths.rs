@@ -3,7 +3,7 @@ use std::cell::{self, RefMut};
 use itertools::Itertools as _;
 use lightningcss::properties::{
     effects::{Filter, FilterList},
-    svg::SVGPaint,
+    svg::{SVGPaint, StrokeDasharray},
 };
 use oxvg_ast::{
     element::Element,
@@ -150,6 +150,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MergePaths {
                 || get_computed_style!(computed_styles, Stroke).option().is_some_and(|(stroke, mode)| {
                     matches!(mode, Mode::Static) && matches!(stroke.option(), Some(SVGPaint::Url { url,.. }) if url.url.starts_with('#'))
                 })
+                // Renderers differ in whether a dash pattern starts again with each subpath
+                || get_computed_style!(computed_styles, StrokeDasharray)
+                    .parsed()
+                    .is_none_or(|style| style.is_some_and(|(dasharray, _)| may_dash(dasharray.option())))
             {
                 log::debug!("ending merge, has forbidden style or reference");
                 update_previous_path!(prev_child);
@@ -220,6 +224,15 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MergePaths {
 
 const fn default_force() -> bool {
     false
+}
+
+/// Whether a stroke may be dashed: an inherited value may be.
+fn may_dash(dasharray: Option<StrokeDasharray>) -> bool {
+    match dasharray {
+        Some(StrokeDasharray::None) => false,
+        Some(StrokeDasharray::Values(values)) => !values.is_empty(),
+        None => true,
+    }
 }
 
 #[test]
@@ -462,6 +475,30 @@ fn merge_paths() -> anyhow::Result<()> {
             r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 122.764 105.935">
     <path d="M43.119 39.565Zm-.797 3.961c.077.167.257.083.309.177Z"/>
     <path d="m42.38 43.684-.06.019Z"/>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "mergePaths": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- don't merge dashed paths, merge those without dashes -->
+    <path d="M0 0H15" stroke="black" stroke-dasharray="2 2"/>
+    <path d="M0 10H15" stroke="black" stroke-dasharray="2 2"/>
+    <g style="stroke-dasharray:1,1">
+        <path d="M0 20H15" stroke="black"/>
+        <path d="M0 30H15" stroke="black"/>
+    </g>
+    <g stroke-dasharray="3 1">
+        <path d="M0 21H15" stroke="black" stroke-dasharray="inherit"/>
+        <path d="M0 31H15" stroke="black" stroke-dasharray="inherit"/>
+    </g>
+    <style>.d { stroke-dasharray: 2 2 }</style>
+    <path class="d" d="M0 22H15" stroke="black"/>
+    <path class="d" d="M0 32H15" stroke="black"/>
+    <path d="M0 40H15" stroke="black" stroke-dasharray="none"/>
+    <path d="M0 50H15" stroke="black" stroke-dasharray="none"/>
 </svg>"#
         ),
     )?);
