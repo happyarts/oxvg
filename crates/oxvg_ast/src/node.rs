@@ -450,10 +450,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
         self.first_child().is_none_or(|_| {
             self.child_nodes_iter().all(|n| {
                 n.node_type() == Type::Text
-                    && n.text_content().is_none_or(|t| {
-                        t.trim_matches(|c| matches!(c, ' ' | '\t' | '\n' | '\r'))
-                            .is_empty()
-                    })
+                    && n.text_content().is_none_or(|t| t.trim_ascii().is_empty())
             })
         })
     }
@@ -816,4 +813,10 @@ impl<'input> NodeData<'input> {
             _ => None,
         }
     }
+}
+
+/// Whitespace as XML defines it; other spaces, such as a no-break space, are
+/// characters of the text.
+pub(crate) fn is_xml_whitespace(char: char) -> bool {
+    matches!(char, ' ' | '\t' | '\n' | '\r')
 }
