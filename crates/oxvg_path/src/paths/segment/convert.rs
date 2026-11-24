@@ -296,6 +296,7 @@ impl Path {
                     *to,
                     implicit.as_ref(),
                     precision,
+                    close,
                 ),
                 Data::ArcTo(arc) => Self::to_svg_arc(
                     previous,
@@ -355,9 +356,12 @@ impl Path {
         to: Point,
         implicit: Option<&ID>,
         precision: TolerancePrecision,
+        close: bool,
     ) -> command::Data {
         let by = to - start;
-        if start == to {
+        // A line of length zero is the `Z` that closes its segment only as the
+        // segment's last command; elsewhere `Z` would move the current point.
+        if start == to && close {
             command::Data::ClosePath
         } else if precision.round(to.x) == precision.round(start.x) {
             let v_to = command::Data::VerticalLineTo([to.y]);
@@ -804,6 +808,23 @@ mod test {
             written_twice("M0 0Q7-4 3-7ZQ-7 4 9-5T3 10").0,
             "M0 0q7-4 3-7ZM0 0q-7 4 9-5T3 10"
         );
+    }
+
+    #[test]
+    fn zero_length_line() {
+        // A line of length zero stays a line: `Z` would move the current point
+        // back to the subpath's start and shift everything after it.
+        for (source, expected) in [
+            ("M0 0L8 10L8 10Q0-2 10 7", "m0 0 8 10v0Q0-2 10 7"),
+            ("M0 0L5 5L5 5", "m0 0 5 5v0"),
+            ("M0 0L0 0L5 5", "M0 0v0l5 5"),
+            // As the last command of a closed segment, it is that segment's `Z`.
+            ("M0 0L5 0L5 5L5 5Z", "M0 0h5v5Z"),
+        ] {
+            let (once, twice) = written_twice(source);
+            assert_eq!(once, expected, "{source}");
+            assert_eq!(once, twice, "{source}");
+        }
     }
 
     #[test]
