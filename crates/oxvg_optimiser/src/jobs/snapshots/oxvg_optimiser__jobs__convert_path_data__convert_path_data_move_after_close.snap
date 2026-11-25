@@ -10,5 +10,5 @@ expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\nSome(r##\"<svg xml
     <path d="M2 2h8v8ZM12 12h6" fill="none" stroke="#000" marker-mid="url(#m)"/>
     <!-- but a move at the end moves the end marker (not dropped, not `M2 2h8v8ZM2 2`) -->
     <path d="M2 2h8v8ZM16 16" fill="none" stroke="#000" marker-end="url(#m)"/>
-    <path d="M2 2h8M16 16" fill="none" stroke="#000" marker-end="url(#m)"/>
+    <path d="M2 2h8m6 14" fill="none" stroke="#000" marker-end="url(#m)"/>
 </svg>

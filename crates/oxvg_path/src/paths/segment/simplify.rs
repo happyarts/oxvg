@@ -4,7 +4,10 @@ use crate::{
     command::{self, ID},
     geometry::{Arc, Curve, Point, Tolerance, TolerancePrecision, ToleranceSquared},
     optimize::Options,
-    paths::segment::{Data, IterStartCursorItem, Path, convert::compactest},
+    paths::segment::{
+        Data, IterStartCursorItem, Path,
+        convert::{CommandStart, compactest},
+    },
 };
 
 impl Path {
@@ -141,7 +144,10 @@ impl Path {
                 let (c, control) = Path::to_svg_curve(
                     previous.as_ref(),
                     control,
-                    start,
+                    CommandStart {
+                        exact: start,
+                        read: start,
+                    },
                     curve,
                     next.as_deref(),
                     implicit.as_ref(),
@@ -176,7 +182,10 @@ impl Path {
                     let a = Path::to_svg_arc(
                         previous.as_ref(),
                         &arc,
-                        start,
+                        CommandStart {
+                            exact: start,
+                            read: start,
+                        },
                         implicit.as_ref(),
                         tolerance,
                         tolerance_squared,
